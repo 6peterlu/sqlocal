@@ -269,4 +269,12 @@ export class SQLocal {
 		this.worker.terminate();
 		this.isWorkerDestroyed = true;
 	};
+
+	protected [Symbol.dispose] = () => {
+		this.destroy();
+	};
+
+	protected [Symbol.asyncDispose] = async () => {
+		await this.destroy();
+	};
 }
