@@ -55,6 +55,7 @@ export type ClientConfig = {
 	databasePath: DatabasePath;
 	readOnly?: boolean;
 	verbose?: boolean;
+	onInit?: (sql: typeof sqlTag) => void | Statement[];
 	onConnect?: () => void;
 };
 
@@ -63,6 +64,7 @@ export type ProcessorConfig = {
 	readOnly?: boolean;
 	verbose?: boolean;
 	clientKey?: QueryKey;
+	onInitStatements?: Statement[];
 };
 
 export type DatabaseInfo = {

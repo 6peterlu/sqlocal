@@ -96,6 +96,7 @@ export class SQLocalProcessor {
 			}
 
 			this.userFunctions.forEach(this.initUserFunction);
+			this.execInitStatements();
 			this.emitMessage({ type: 'event', event: 'connect' });
 		} catch (error) {
 			this.emitMessage({
@@ -198,7 +199,7 @@ export class SQLocalProcessor {
 				case 'batch':
 					try {
 						await this.transactionMutex.lock();
-						this.db.transaction((tx: Sqlite3Db) => {
+						this.db.transaction((tx) => {
 							for (let statement of message.statements) {
 								const statementData = execOnDb(tx, statement);
 								response.data.push(statementData);
@@ -236,6 +237,14 @@ export class SQLocalProcessor {
 				error,
 				queryKey: message.queryKey,
 			});
+		}
+	};
+
+	protected execInitStatements = (): void => {
+		if (this.db && this.config.onInitStatements) {
+			for (let statement of this.config.onInitStatements) {
+				execOnDb(this.db, statement);
+			}
 		}
 	};
 
@@ -358,6 +367,7 @@ export class SQLocalProcessor {
 						: this.sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE
 				);
 				this.db.checkRc(resultCode);
+				this.execInitStatements();
 			}
 		} catch (error) {
 			this.emitMessage({
