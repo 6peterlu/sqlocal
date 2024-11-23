@@ -11,11 +11,11 @@ describe.each([
 		const eventValues = new Set<string>();
 		const db1 = new SQLocal({
 			databasePath: type === 'opfs' ? 'overwrite-test-db1.sqlite3' : path,
-			onConnect: () => eventValues.add('connect1'),
+			onConnect: (reason) => eventValues.add(`connect1(${reason})`),
 		});
 		const db2 = new SQLocal({
 			databasePath: type === 'opfs' ? 'overwrite-test-db2.sqlite3' : path,
-			onConnect: () => eventValues.add('connect2'),
+			onConnect: (reason) => eventValues.add(`connect2(${reason})`),
 		});
 
 		await db1.sql`CREATE TABLE letters (letter TEXT NOT NULL)`;
@@ -25,7 +25,10 @@ describe.each([
 		await db2.sql`INSERT INTO nums (num) VALUES (1), (2), (3)`;
 
 		await vi.waitUntil(() => {
-			return eventValues.has('connect1') && eventValues.has('connect2');
+			return (
+				eventValues.has('connect1(initial)') &&
+				eventValues.has('connect2(initial)')
+			);
 		});
 		eventValues.clear();
 
@@ -42,8 +45,8 @@ describe.each([
 		expect(eventValues.has('unlock1')).toBe(true);
 
 		if (type !== 'memory') {
-			expect(eventValues.has('connect1')).toBe(true);
-			expect(eventValues.has('connect2')).toBe(false);
+			expect(eventValues.has('connect1(overwrite)')).toBe(true);
+			expect(eventValues.has('connect2(overwrite)')).toBe(false);
 		}
 
 		const letters1 = db1.sql`SELECT * FROM letters`;
@@ -84,18 +87,21 @@ describe.each([
 		const eventValues = new Set<string>();
 		const db1 = new SQLocal({
 			databasePath: path,
-			onConnect: () => eventValues.add('connect1'),
+			onConnect: (reason) => eventValues.add(`connect1(${reason})`),
 		});
 		const db2 = new SQLocal({
 			databasePath: path,
-			onConnect: () => eventValues.add('connect2'),
+			onConnect: (reason) => eventValues.add(`connect2(${reason})`),
 		});
 
 		await db2.sql`CREATE TABLE nums (num INTEGER NOT NULL)`;
 		await db2.sql`INSERT INTO nums (num) VALUES (123)`;
 
 		await vi.waitUntil(() => {
-			return eventValues.has('connect1') && eventValues.has('connect2');
+			return (
+				eventValues.has('connect1(initial)') &&
+				eventValues.has('connect2(initial)')
+			);
 		});
 		eventValues.clear();
 
@@ -114,8 +120,8 @@ describe.each([
 		if (type !== 'memory') {
 			await vi.waitUntil(() => eventValues.size === 3);
 			expect(eventValues.has('unlock1')).toBe(true);
-			expect(eventValues.has('connect1')).toBe(true);
-			expect(eventValues.has('connect2')).toBe(true);
+			expect(eventValues.has('connect1(overwrite)')).toBe(true);
+			expect(eventValues.has('connect2(overwrite)')).toBe(true);
 		} else {
 			await vi.waitUntil(() => eventValues.size === 1);
 			expect(eventValues.has('unlock1')).toBe(true);

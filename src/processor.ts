@@ -21,6 +21,8 @@ import type {
 	TransactionMessage,
 	DeleteMessage,
 	ExportMessage,
+	ConnectReason,
+	ReinitMessage,
 } from './types.js';
 import { createMutex } from './lib/create-mutex.js';
 import { execOnDb } from './lib/exec-on-db.js';
@@ -47,10 +49,10 @@ export class SQLocalProcessor {
 	constructor(sameContext: boolean) {
 		const proxy = sameContext ? globalThis : coincident(globalThis);
 		this.proxy = proxy as WorkerProxy;
-		this.init();
+		this.init('initial');
 	}
 
-	protected init = async (): Promise<void> => {
+	protected init = async (reason: ConnectReason): Promise<void> => {
 		if (!this.config.databasePath) return;
 
 		await this.initMutex.lock();
@@ -88,16 +90,16 @@ export class SQLocalProcessor {
 				this.reinitChannel = new BroadcastChannel(
 					`_sqlocal_reinit_(${databasePath})`
 				);
-				this.reinitChannel.onmessage = (message: MessageEvent<QueryKey>) => {
-					if (this.config.clientKey !== message.data) {
-						this.init();
+				this.reinitChannel.onmessage = (event: MessageEvent<ReinitMessage>) => {
+					if (this.config.clientKey !== event.data.clientKey) {
+						this.init(event.data.reason);
 					}
 				};
 			}
 
 			this.userFunctions.forEach(this.initUserFunction);
 			this.execInitStatements();
-			this.emitMessage({ type: 'event', event: 'connect' });
+			this.emitMessage({ type: 'event', event: 'connect', reason });
 		} catch (error) {
 			this.emitMessage({
 				type: 'error',
@@ -162,7 +164,7 @@ export class SQLocalProcessor {
 
 	protected editConfig = (message: ConfigMessage): void => {
 		this.config = message.config;
-		this.init();
+		this.init('initial');
 	};
 
 	protected exec = async (
@@ -378,7 +380,7 @@ export class SQLocalProcessor {
 			errored = true;
 		} finally {
 			if (this.dbStorageType !== 'memory') {
-				await this.init();
+				await this.init('overwrite');
 			}
 		}
 
@@ -452,7 +454,7 @@ export class SQLocalProcessor {
 			});
 			errored = true;
 		} finally {
-			await this.init();
+			await this.init('delete');
 		}
 
 		if (!errored) {

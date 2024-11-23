@@ -24,6 +24,7 @@ import type {
 	DeleteMessage,
 	DatabasePath,
 	ExportMessage,
+	ReinitMessage,
 } from './types.js';
 import { SQLocalProcessor } from './processor.js';
 import { sqlTag } from './lib/sql-tag.js';
@@ -125,7 +126,7 @@ export class SQLocal {
 				break;
 
 			case 'event':
-				this.config.onConnect?.();
+				this.config.onConnect?.(message.reason);
 				break;
 		}
 	};
@@ -449,7 +450,10 @@ export class SQLocal {
 					await beforeUnlock();
 				}
 
-				this.reinitChannel.postMessage(this.clientKey);
+				this.reinitChannel.postMessage({
+					clientKey: this.clientKey,
+					reason: 'overwrite',
+				} satisfies ReinitMessage);
 			} finally {
 				this.bypassMutationLock = false;
 			}
@@ -470,7 +474,10 @@ export class SQLocal {
 					await beforeUnlock();
 				}
 
-				this.reinitChannel.postMessage(this.clientKey);
+				this.reinitChannel.postMessage({
+					clientKey: this.clientKey,
+					reason: 'delete',
+				} satisfies ReinitMessage);
 			} finally {
 				this.bypassMutationLock = false;
 			}
